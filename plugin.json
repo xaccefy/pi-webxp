@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pi-webxp",
+  "version": "0.9.4",
+  "description": "Web research and offensive HTTP transport for Pi Agent — search, fetch, docs, exploit-technique search, raw/race/JWT tooling.",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi-extension", "webxp", "security", "pentest", "web-search"]
+}

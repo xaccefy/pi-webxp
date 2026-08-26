@@ -29,15 +29,8 @@ type Context7DocsResponse = {
 export const context7Tool = {
   name: "context7",
   label: "Context7 Docs",
-  description:
-    "Fetch up-to-date documentation for a library. " +
-    "Use libraryName (e.g. 'react') and optional topic (e.g. 'hooks'). " +
-    "Returns current docs with code examples.",
+  description: "Fetch up-to-date library documentation with code examples.",
   promptSnippet: "Fetch current library documentation (with examples)",
-  promptGuidelines: [
-    "Use context7 when the user asks how to use a library/framework (e.g. 'react', 'zod'), or you need up-to-date API docs and code examples for a dependency.",
-    "Prefer context7 over web_search for library how-to questions; scope with topic (e.g. 'hooks', 'validation') when useful.",
-  ],
   parameters: Type.Object(
     {
       libraryName: Type.String({ description: "Library name, e.g. 'react', 'next.js', 'zod'" }),

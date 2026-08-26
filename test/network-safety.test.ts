@@ -1,13 +1,9 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { isPublicIpAddress as sharedIsPublicIpAddress } from "@xaccefy/pi-shared";
-import { isPublicIpAddress, pinPublicHostForPlainHttp } from "../src/network-safety.ts";
+import { isPublicIpAddress } from "@xaccefy/pi-shared";
+import { pinPublicHostForPlainHttp } from "../src/network-safety.ts";
 
 describe("network-safety: isPublicIpAddress", () => {
-  it("re-exports the exact shared classifier rather than a hand-synced copy", () => {
-    assert.strictEqual(isPublicIpAddress, sharedIsPublicIpAddress);
-  });
-
   it("rejects private and reserved IPv4 ranges", () => {
     for (const ip of [
       "10.0.0.1",

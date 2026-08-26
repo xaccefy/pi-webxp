@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { MockExtensionAPI } from "../test-utils.ts";
 import piWebxp from "../src/index.ts";
+import { MockExtensionAPI } from "../test-utils.ts";
 
 const originalFetch = globalThis.fetch;
 

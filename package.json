@@ -1,6 +1,6 @@
 {
   "name": "@xaccefy/pi-webxp",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "Web search, page fetch, library docs, repo Q&A, and exploit technique search for Pi Agent",
   "keywords": [
     "pi-package",
@@ -36,7 +36,6 @@
     "src/deepwiki.ts",
     "src/exploitsearch.ts",
     "src/rawhttp.ts",
-    "src/jwtx.ts",
     "README.md",
     "LICENSE"
   ],

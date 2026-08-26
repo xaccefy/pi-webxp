@@ -13,8 +13,8 @@
  *   byte, waits until all sockets are flushed, then issues the final bytes
  *   back-to-back within a single event-loop turn (last-byte sync). This is
  *   BATCH release, not a true single-packet send: per-socket kernel buffering
- *   adds spread on high-RTT targets. The report records the observed
- *   release spread (`releaseOffsetMs`) so the caller can judge sync quality.
+ *   adds spread on high-RTT targets, so treat wide result timing as
+ *   unsynchronized rather than claiming race precision.
  *
  * Safety model (same policy as http_request):
  * - The target hostname is resolved ONCE per call; EVERY answer must be
@@ -351,8 +351,6 @@ export async function sendRawRequest(
 
 export type RaceSendResult = RawHttpResponse & {
   index: number;
-  /** ms between the earliest final-byte release and this socket's release. */
-  releaseOffsetMs: number;
 };
 
 export type RaceSendReport = {
@@ -365,10 +363,9 @@ export type RaceSendReport = {
  * Fire N raw requests with last-byte synchronization: every socket transmits
  * all but the final byte, waits for the flush, then the final bytes are issued
  * back-to-back within one event-loop turn. This is batch release — not a
- * single-syscall single-packet attack — so observed spread grows with RTT and
- * kernel buffering variance. The report records the observed release spread
- * (releaseOffsetMs); treat large spreads as unsynchronized rather than
- * claiming race precision the transport did not deliver.
+ * single-syscall single-packet attack — so observed timing grows with RTT and
+ * kernel buffering variance; treat wide result timing as unsynchronized rather
+ * than claiming race precision the transport did not deliver.
  */
 export async function raceSendRequests(
   target: string,
@@ -428,7 +425,7 @@ export async function raceSendRequests(
 
     // Phase 1: everything except the final byte, and WAIT for each flush so
     // the bytes are already sitting in the target's receive buffer.
-    await Promise.all(sockets.map((s, i) => writeChunk(s, parts[i]!.head, timeoutMs)));
+    await Promise.all(sockets.map((s, i) => writeChunk(s, parts[i].head, timeoutMs)));
 
     // Captures start only now: responseWaitMs must measure the RESPONSE
     // window, not include head-flush time (large requests would otherwise
@@ -444,7 +441,7 @@ export async function raceSendRequests(
     // captureResponse consumes; a failed tail simply ends that socket's
     // capture with whatever was observed (honest incomplete observation).
     for (const [i, s] of sockets.entries()) {
-      if (parts[i]!.tail.byteLength > 0) s.write(parts[i]!.tail);
+      if (parts[i].tail.byteLength > 0) s.write(parts[i].tail);
     }
 
     const settled = await Promise.all(captures.map((c) => c.done));
@@ -453,12 +450,6 @@ export async function raceSendRequests(
     const readStart = Date.now();
     const results: RaceSendResult[] = settled.map((cap, i) => ({
       index: i,
-      // Batch release: every tail was issued in the same turn, so the
-      // per-request dispatch offset is ~0 by construction. The honest sync
-      // signal is now response-side: compare timingMs/body arrival across
-      // results instead of a release timestamp we no longer measure per
-      // socket.
-      releaseOffsetMs: 0,
       ...summarizeCapture(cap, readStart),
     }));
 
@@ -520,14 +511,8 @@ export default function rawHttpExtension(pi: ExtensionAPI) {
     name: "raw_request",
     label: "Raw Request",
     description:
-      "Send a raw HTTP request over a direct TCP/TLS socket with BYTE-EXACT control — nothing is normalized, corrected, or re-framed. Use for request-smuggling probes (CL.TE/TE.CL desync), parser differentials, malformed framing, and any technique needing duplicate/contradictory headers that fetch cannot express. The response is captured verbatim until the peer closes or responseWaitMs elapses; a hung socket (completed:false) is itself the classic desync signal.",
-    promptSnippet: "Send byte-exact raw HTTP over a socket (smuggling/desync probes)",
-    promptGuidelines: [
-      "Provide the FULL request including request line, headers, and terminating blank line: 'POST /x HTTP/1.1\\r\\nHost: t\\r\\nContent-Length: 4\\r\\n\\r\\nABCD'. Nothing is auto-corrected — wrong Content-Length is your technique, not an error.",
-      "Timing probe first: a partial TE.CL payload makes the socket hang waiting for bytes — completed:false plus a distinct delay indicates front/back-end disagreement.",
-      "Confirm impact before reporting: smuggle an attributable prefix (e.g. force the next request to GET /<your-canary>) and observe the effect on a request you control.",
-      "Private/internal hosts are blocked unless allowPrivateHosts=true; DNS is resolved once and every answer must be public — the socket dials the validated IP directly.",
-    ],
+      "Send a raw HTTP request over a direct TCP/TLS socket with byte-exact control — nothing is normalized, corrected, or re-framed. The response is captured verbatim until the peer closes or responseWaitMs elapses.",
+    promptSnippet: "Send byte-exact raw HTTP over a socket",
     parameters: Type.Object(
       {
         target: TargetParam,
@@ -595,15 +580,8 @@ export default function rawHttpExtension(pi: ExtensionAPI) {
     name: "race_send",
     label: "Race Send",
     description:
-      "Fire 2-32 raw HTTP requests with LAST-BYTE SYNC: all sockets transmit everything except the final byte, wait for flush, then the final bytes are issued back-to-back within one event-loop turn. This is batch release, not a true single-packet send — judge synchronization by the reported release spread before claiming race timing. Use to exploit TOCTOU windows (coupon redemption xN, balance overdraft, invite acceptance, vote/limit bypass). Sequential requests cannot hit these windows; this tool can. Pair with the race-conditions methodology: prove the over-limit END STATE, then show a serial baseline does not reach it.",
-    promptSnippet: "Release N synchronized raw requests (last-byte sync race attack)",
-    promptGuidelines: [
-      "Each entry must be a COMPLETE raw request (request line, Host header, framing headers, body). Vary per-request values (e.g. coupon codes) inside the entries, not by editing after send.",
-      "Report requires the differential: burst reaching the illegitimate state vs the same request sent serially via raw_request producing a single success. Record concurrency and the observed release spread.",
-      "Races are probabilistic — reproduce at least twice before claiming confirmation, and state the observed success count honestly.",
-      "holdLastByte=false sends each request immediately after connect (no sync); keep the default true for actual races.",
-      "Check the reported release spread BEFORE claiming synchronization: batch release adds per-socket buffering skew, and a wide spread means the burst was effectively sequential.",
-    ],
+      "Fire 2-32 raw HTTP requests with last-byte sync: all sockets transmit everything except the final byte, wait for flush, then the final bytes are issued back-to-back within one event-loop turn. Batch release, not a true single-packet send — judge synchronization by the reported release spread.",
+    promptSnippet: "Release N synchronized raw requests (last-byte sync)",
     parameters: Type.Object(
       {
         target: TargetParam,
@@ -641,12 +619,11 @@ export default function rawHttpExtension(pi: ExtensionAPI) {
             maxResponseBytes: params.maxResponseBytes as number | undefined,
           },
         );
-        const spread = Math.max(...report.results.map((r) => r.releaseOffsetMs), 0);
         const lines = report.results
-          .map((r) => `#${r.index} ${r.status ?? "?"} (+${r.releaseOffsetMs}ms, ${r.bodyBytes}B)`)
+          .map((r) => `#${r.index} ${r.status ?? "?"} (${r.bodyBytes}B)`)
           .join("\n");
         const text =
-          `released ${report.results.length} requests, spread ${spread}ms\n` +
+          `released ${report.results.length} requests\n` +
           `${lines}\n` +
           `statuses: ${JSON.stringify(report.statuses)}${report.errors.length ? `\nerrors: ${report.errors.join("; ")}` : ""}`;
         return {
@@ -672,14 +649,12 @@ export default function rawHttpExtension(pi: ExtensionAPI) {
     renderResult(result, _opts, theme, context) {
       if (context.isError) return new Text(theme.fg("error", "✗ race failed"), 0, 0);
       const d = result.details as
-        | { results?: { releaseOffsetMs?: number }[]; statuses?: Record<string, number> }
+        | { results?: unknown[]; statuses?: Record<string, number> }
         | undefined;
-      const spread = d?.results?.length
-        ? Math.max(...d.results.map((r) => r.releaseOffsetMs ?? 0))
-        : 0;
+      const n = d?.results?.length ?? 0;
       return new Text(
         theme.fg("success", "✓ burst ") +
-          theme.fg("dim", `spread ${spread}ms ${JSON.stringify(d?.statuses ?? {})}`),
+          theme.fg("dim", `x${n} ${JSON.stringify(d?.statuses ?? {})}`),
         0,
         0,
       );

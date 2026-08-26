@@ -4,8 +4,6 @@ import { isIP } from "node:net";
 import { isPublicIpAddress } from "@xaccefy/pi-shared";
 import { Agent } from "undici";
 
-export { isPublicIpAddress } from "@xaccefy/pi-shared";
-
 export function normalizeHostname(hostname: string): string {
   let host = hostname.toLowerCase();
   if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);

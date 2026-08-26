@@ -17,7 +17,7 @@ Two things in one package, deliberately:
 `web_search`, `web_fetch`, `deepwiki` (repo/library docs), `exploit_search` (exploit-technique lookup; needs `PREVIEW_IS_API_KEY`)
 
 **Transport** — byte-exact attack primitives for classes where ordinary HTTP clients lie:
-`raw_request` (byte-exact smuggling/desync probes), `race_send` (last-byte-sync batch-release racing), `http_request` (general purpose), `jwt` (token forging/key-confusion testing)
+`raw_request` (byte-exact smuggling/desync probes), `race_send` (last-byte-sync batch-release racing), `http_request` (general purpose)
 
 Network safety gates (`network-safety.ts`) scope what targets the transport tools will touch.
 
@@ -35,7 +35,7 @@ Peer-depends on a Pi-compatible agent host (`@earendil-works/pi-coding-agent`, `
 
 ```bash
 bun install
-bun test --isolate   # 68 tests
+bun test --isolate   # 61 tests
 bun run typecheck
 ```
 

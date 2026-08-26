@@ -185,19 +185,8 @@ export default function httpRequestExtension(pi: ExtensionAPI) {
     name: "http_request",
     label: "HTTP Request",
     description:
-      "Send a raw HTTP request with a persistent cookie jar, custom headers, and body control. Use for authenticated web-app testing (login → probe), API vulnerability probing, and verifying HTTP behavior. Unlike web_fetch (stateless, read-only), http_request persists cookies across calls within a session, supports all methods, and surfaces raw responses. Runtime note: on Bun + HTTPS, DNS is validated pre-flight only — a rebinding resolver could still reach a private address at connect time (Node pins at connect time; see network-safety.ts).",
+      "Send an HTTP request with a persistent cookie jar, custom headers, methods, and body control. Persists cookies across calls within a session; surfaces raw responses. Runtime note: on Bun + HTTPS, DNS is validated pre-flight only (Node pins at connect time; see network-safety.ts).",
     promptSnippet: "Send HTTP requests with cookies, headers, and body control",
-    promptGuidelines: [
-      "Use http_request for authenticated web-app testing: POST to login, then GET protected resources — the cookie jar persists across calls automatically.",
-      "Default redirect mode is 'manual' — you'll see 302/301 as-is (critical for redirect-chain analysis). Use 'follow' to auto-follow redirects.",
-      "Pass json for JSON bodies (Content-Type set automatically); pass body for raw/form payloads.",
-      "Private/internal hosts (127.0.0.1, 10.x, 192.168.x, fc00::/7) are blocked by default. Set allowPrivateHosts=true for internal pentest targets.",
-      "Use verifyTls=false for self-signed cert targets (e.g., internal staging apps). TLS verification is enabled by default.",
-      "Set-Cookie is stored with RFC cookie scope. Explicit Cookie applies only to the first request; redirects use jar cookies for the new URL.",
-      "Use session:'attacker' and session:'victim' to hold two authenticated identities at once — replay a victim object URL under the attacker session to prove IDOR/access-control bugs without losing either login.",
-      "Pass an Authorization header (e.g. headers: { Authorization: 'Basic <base64>' }) for Basic auth — the http_request tool does not store credentials itself, keeping auth explicit and visible in the transcript.",
-      "Prefer http_request over web_fetch when you need custom methods, auth headers, cookie-dependent auth flows, or raw response headers. Use web_fetch for read-only page content when you don't need session state.",
-    ],
     parameters: Type.Object(
       {
         url: Type.String({ description: "Target URL (http:// or https://)" }),

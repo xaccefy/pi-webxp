@@ -2,8 +2,8 @@ import assert from "node:assert";
 import type { AddressInfo, Server } from "node:net";
 import net from "node:net";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { MockExtensionAPI } from "../test-utils.ts";
 import piWebxp from "../src/index.ts";
+import { MockExtensionAPI } from "../test-utils.ts";
 
 /**
  * Raw TCP server that echoes an HTTP response once a connection's buffer
@@ -231,10 +231,6 @@ describe("pi-webxp: raw_request / race_send", () => {
     assert.equal(d.results.length, 8, "one observation per request");
     assert.deepEqual(d.statuses, { "200": 8 }, "every synchronized request got its response");
     assert.equal(received.length, 8, "server saw every complete request");
-    for (const r of d.results) {
-      assert.equal(typeof r.releaseOffsetMs, "number");
-      assert.ok(r.releaseOffsetMs >= 0);
-    }
 
     // Sync quality: server-side completion timestamps should cluster tightly
     // compared to sequential dialing (generous bound for CI scheduler jitter).

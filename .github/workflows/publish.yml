@@ -1,0 +1,52 @@
+name: Publish to npm
+
+# Publishes on every push to main, but ONLY when package.json "version"
+# is not already on npm. Bump the version -> push -> it publishes.
+# Push without a version bump -> gates run, publish step no-ops.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run typecheck
+
+      - run: bun test --isolate
+
+      - run: bunx --bun @biomejs/biome@2.5.10 check .
+
+      # npm for the publish itself (auth + provenance), even though bun runs the gates.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish if version is new
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION already published — skipping."
+          else
+            echo "Publishing $NAME@$VERSION"
+            npm publish --provenance --access public
+          fi

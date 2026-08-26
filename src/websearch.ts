@@ -14,11 +14,6 @@ import { abortableSleep } from "@xaccefy/pi-shared";
 import { Type } from "typebox";
 import { assertPublicDns, isPublicHttpHost } from "./network-safety.ts";
 
-/** Retriable HTTP statuses for daemon calls (408/429/5xx). */
-function isTransientHttpStatus(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500;
-}
-
 // ── Constants & Environment ──────────────────────────────────────────
 
 function resolveDaemonPort(): string {
@@ -212,8 +207,8 @@ async function fetchWithRetry(
     // ignore
   }
 
-  // Only retry transient failures; permanent 4xx should fail fast.
-  if (!isTransientHttpStatus(status)) {
+  // Only retry transient failures (408/429/5xx); permanent 4xx should fail fast.
+  if (!(status === 408 || status === 429 || status >= 500)) {
     throw new Error(`HTTP ${status}`);
   }
   if (parentSignal?.aborted) throw new Error(`HTTP ${status}`);
@@ -269,13 +264,8 @@ export default function websearchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "web_search",
     label: "Web Search",
-    description:
-      "Search the web for real-world exploits, write-ups, or documentation using search engines (no API keys required).",
-    promptSnippet: "Search the web for exploits, docs, or general info",
-    promptGuidelines: [
-      "Use web_search to find CVEs, advisories, documentation, write-ups, or any live web results (no API key needed).",
-      "Prefer web_search for general web lookups; use exploit_search for offense-specific technique grounding, and context7/deepwiki for library/repo docs.",
-    ],
+    description: "Search the web via search engines (no API key required).",
+    promptSnippet: "Search the web for docs or general info",
     parameters: Type.Object(
       {
         query: Type.String({ description: "Search query string" }),
@@ -377,13 +367,8 @@ export default function websearchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "web_fetch",
     label: "Web Fetch",
-    description:
-      "Read full text, markdown article content, or GitHub README files from an HTTP/HTTPS URL.",
-    promptSnippet: "Fetch the full text/markdown content of a URL",
-    promptGuidelines: [
-      "Use web_fetch to read the full text, article markdown, or README from a specific HTTP(S) URL when the user gives a link or you need page content rather than search results.",
-      "Prefer web_fetch over web_search when you already have a target URL.",
-    ],
+    description: "Read text, markdown, or GitHub README content from an HTTP/HTTPS URL.",
+    promptSnippet: "Fetch the text/markdown content of a URL",
     parameters: Type.Object(
       {
         url: Type.String({ description: "Valid HTTP or HTTPS URL to fetch" }),

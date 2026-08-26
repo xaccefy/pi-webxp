@@ -82,15 +82,8 @@ function extractDeepwikiText(body: string, contentType: string): string {
 export const deepwikiTool = {
   name: "deepwiki",
   label: "DeepWiki",
-  description:
-    "Ask questions about any public GitHub repository. " +
-    "Use repo='owner/name' (e.g. 'facebook/react') and a natural-language question. " +
-    "Returns synthesized answer with citations to source files.",
+  description: "Ask questions about any public GitHub repository (repo='owner/name').",
   promptSnippet: "Ask questions about a public GitHub repo",
-  promptGuidelines: [
-    "Use deepwiki to understand a public GitHub repository: architecture, how a feature works, or how to use it, by asking natural-language questions about owner/name.",
-    "Prefer deepwiki over web_search/web_fetch when the target is a public repo and the user wants a synthesized, cited answer rather than raw files.",
-  ],
   parameters: Type.Object(
     {
       repo: Type.String({

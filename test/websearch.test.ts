@@ -62,11 +62,14 @@ describe("pi-webxp: web_search/web_fetch", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("registers web_search and web_fetch tools and calls mock daemon endpoints", async () => {
+  it("registers only research tools and calls mock daemon endpoints", async () => {
     const pi = new MockExtensionAPI();
     piWebxp(pi as any);
 
-    // Assert tools are registered
+    assert.deepStrictEqual(
+      pi.tools.map((tool) => tool.name),
+      ["web_search", "web_fetch", "context7", "deepwiki"],
+    );
     const searchTool = pi.tools.find((t) => t.name === "web_search");
     const fetchTool = pi.tools.find((t) => t.name === "web_fetch");
     assert.ok(searchTool);

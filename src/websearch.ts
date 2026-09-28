@@ -392,14 +392,9 @@ export default function websearchExtension(pi: ExtensionAPI) {
         }
         const parsedUrl = validateAndParseUrl(params.url);
         if (!isPublicHttpHost(parsedUrl)) {
-          throw new Error(
-            `Blocked: ${parsedUrl.hostname} is a private/internal host. Use http_request with allowPrivateHosts=true for internal targets.`,
-          );
+          throw new Error(`Blocked: ${parsedUrl.hostname} is a private/internal host.`);
         }
-        // Hostname-level validation alone accepts DNS names. Reject addresses
-        // that are private at submission time. The daemon resolves again when
-        // it fetches, so this is a pre-flight guard rather than connect-time
-        // pinning; use http_request for the stronger direct-fetch boundary.
+        // This preflight check does not pin the daemon's later DNS resolution.
         await assertPublicDns(parsedUrl.hostname);
         const targetUrl = parsedUrl.toString();
 

@@ -1,36 +1,13 @@
-/**
- * pi-webxp — web search, page fetch, library docs, repo Q&A, and exploit technique search.
- *
- * Tools: web_search, web_fetch, context7, deepwiki, exploit_search, http_request
- *
- * Merges the former pi-lookup and pi-exploitsearch extensions into one
- * "find information" surface: general web lookups, library docs, repo Q&A,
- * and the preview.is offense-specific technique corpus.
- */
+/** Web search, page fetch, library docs, and repo Q&A for Pi. */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { context7Tool } from "./context7.ts";
 import { deepwikiTool } from "./deepwiki.ts";
-import exploitSearchExtension from "./exploitsearch.ts";
-import httpRequestExtension from "./httprequest.ts";
-import rawHttpExtension from "./rawhttp.ts";
 import websearchExtension from "./websearch.ts";
 
 export default function piWebxp(pi: ExtensionAPI) {
-  // web_search + web_fetch
   websearchExtension(pi);
-
-  // exploit_search (preview.is corpus)
-  exploitSearchExtension(pi);
-
-  // ── http_request ──
-  httpRequestExtension(pi);
-
-  // ── raw_request + race_send (byte-level attack transport) ──
-  rawHttpExtension(pi);
-
-  // ── context7 + deepwiki (same registration shape: name, call arg, success noun) ──
 
   for (const [tool, callArg, resultKey, noun] of [
     [context7Tool, "libraryName", "libraryId", "Docs"],

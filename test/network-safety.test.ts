@@ -1,7 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import { isPublicIpAddress } from "@xaccefy/pi-shared";
-import { pinPublicHostForPlainHttp } from "../src/network-safety.ts";
 
 describe("network-safety: isPublicIpAddress", () => {
   it("rejects private and reserved IPv4 ranges", () => {
@@ -38,34 +37,5 @@ describe("network-safety: isPublicIpAddress", () => {
     ]) {
       assert.strictEqual(isPublicIpAddress(ip), false, ip);
     }
-  });
-});
-
-describe("network-safety: pinPublicHostForPlainHttp", () => {
-  const resolver = (addresses: string[]) => async () => addresses.map((address) => ({ address }));
-
-  it("rewrites http hostnames to the validated public IP", async () => {
-    const url = new URL("http://example.com/read?x=1");
-    const pinned = await pinPublicHostForPlainHttp(url, resolver(["93.184.216.34"]));
-    assert.ok(pinned);
-    assert.strictEqual(pinned.hostname, "93.184.216.34");
-    assert.strictEqual(pinned.pathname + pinned.search, "/read?x=1");
-  });
-
-  it("throws (fail closed) when any answer is private", async () => {
-    const url = new URL("http://rebinding.example/x");
-    await assert.rejects(
-      pinPublicHostForPlainHttp(url, resolver(["93.184.216.34", "127.0.0.1"])),
-      /private\/internal address/,
-    );
-  });
-
-  it("returns null for unresolvable hosts, https, and IP literals", async () => {
-    assert.strictEqual(
-      await pinPublicHostForPlainHttp(new URL("http://nope.invalid/"), resolver([])),
-      null,
-    );
-    assert.strictEqual(await pinPublicHostForPlainHttp(new URL("https://example.com/")), null);
-    assert.strictEqual(await pinPublicHostForPlainHttp(new URL("http://127.0.0.1/")), null);
   });
 });

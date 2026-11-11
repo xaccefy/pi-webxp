@@ -278,6 +278,46 @@ describe("pi-webxp: web_search/web_fetch", () => {
     assert.strictEqual(result.details.results[0].title, "Retry OK");
   });
 
+  it("passes readability/includeLinks and appends article links", async () => {
+    const pi = new MockExtensionAPI();
+    piWebxp(pi as any);
+    const fetchTool = pi.tools.find((t) => t.name === "web_fetch");
+
+    let sent: any;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (url.toString().endsWith("/health")) {
+        return { ok: true, json: async () => ({ status: "ok", data: {} }) } as Response;
+      }
+      sent = JSON.parse(init?.body as string);
+      return {
+        ok: true,
+        json: async () => ({
+          status: "ok",
+          data: {
+            content: "Article",
+            readableHtml: "<p>Article</p>",
+            links: [{ text: "Docs", href: "https://example.com/docs" }, { text: "no href" }],
+          },
+        }),
+      } as Response;
+    }) as any;
+
+    const result = await fetchTool.execute(
+      "c1",
+      { url: "https://example.com/post", includeLinks: true },
+      null,
+      null,
+      null,
+    );
+    assert.strictEqual(sent.readability, true);
+    assert.strictEqual(sent.includeLinks, true);
+    assert.strictEqual(
+      result.content[0].text,
+      "Article\n\nLinks:\n- [Docs](https://example.com/docs)",
+    );
+    assert.strictEqual(result.details.metadata.readableHtml, undefined);
+  });
+
   it("surfaces daemon error messages without the startup hint", async () => {
     const pi = new MockExtensionAPI();
     piWebxp(pi as any);

@@ -23,6 +23,10 @@ function resolveDaemonPort(): string {
   return String(n);
 }
 const DAEMON_PORT = resolveDaemonPort();
+const DEFAULT_ENGINES = (process.env.PI_WEBSEARCH_ENGINES || "duckduckgo,startpage")
+  .split(",")
+  .map((engine) => engine.trim())
+  .filter(Boolean);
 const DAEMON_URL = `http://127.0.0.1:${DAEMON_PORT}`;
 let shuttingDown = false;
 
@@ -70,10 +74,12 @@ type FetchData =
       content?: string;
       text?: string;
       retrievalMethod?: string;
+      links?: Array<{ text?: string; href?: string }>;
       [key: string]: unknown;
     };
 
 const DEFAULT_MAX_CHARS = 30000;
+const MAX_LINKS = 100;
 
 type FetchRoute = { endpoint: "/fetch-web" | "/fetch-github-readme"; url: string };
 
@@ -315,7 +321,7 @@ export default function websearchExtension(pi: ExtensionAPI) {
         ),
         engines: Type.Optional(
           Type.Array(Type.String(), {
-            description: "Engines to query (e.g. bing, duckduckgo, brave, exa)",
+            description: `Engines to query (e.g. bing, duckduckgo, brave, exa; default: ${DEFAULT_ENGINES.join(", ")})`,
           }),
         ),
       },
@@ -341,7 +347,7 @@ export default function websearchExtension(pi: ExtensionAPI) {
             body: JSON.stringify({
               query: params.query,
               limit: params.limit ?? 10,
-              engines: params.engines || ["duckduckgo", "startpage"],
+              engines: params.engines || DEFAULT_ENGINES,
             }),
           },
           signal,
@@ -423,6 +429,12 @@ export default function websearchExtension(pi: ExtensionAPI) {
               "request: plain HTTP only; auto (default): fall back to a browser for JS-heavy pages; browser: always render",
           }),
         ),
+        readability: Type.Optional(
+          Type.Boolean({ description: "Extract only the main article text, dropping nav and ads" }),
+        ),
+        includeLinks: Type.Optional(
+          Type.Boolean({ description: "Append the article's links (implies readability)" }),
+        ),
       },
       { additionalProperties: false },
     ),
@@ -459,7 +471,13 @@ export default function websearchExtension(pi: ExtensionAPI) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(
                 endpoint === "/fetch-web"
-                  ? { url: targetUrl, maxChars, renderMode: params.renderMode }
+                  ? {
+                      url: targetUrl,
+                      maxChars,
+                      renderMode: params.renderMode,
+                      readability: params.readability || params.includeLinks || undefined,
+                      includeLinks: params.includeLinks,
+                    }
                   : { url: targetUrl },
               ),
             },
@@ -488,14 +506,21 @@ export default function websearchExtension(pi: ExtensionAPI) {
             ? data
             : data.markdown || data.content || data.text || JSON.stringify(data);
         // /fetch-web already truncates to maxChars; the README fetcher does not.
-        const textContent =
+        let textContent =
           endpoint === "/fetch-github-readme" ? truncateContent(rawText, maxChars) : rawText;
-        const retrievalMethod = typeof data === "string" ? undefined : data.retrievalMethod;
+        const meta = typeof data === "string" ? undefined : data;
+        const links = (meta?.links ?? []).filter((link) => link.href).slice(0, MAX_LINKS);
+        if (links.length > 0) {
+          textContent += `\n\nLinks:\n${links.map((l) => `- [${l.text || l.href}](${l.href})`).join("\n")}`;
+        }
+        const retrievalMethod = meta?.retrievalMethod;
+        // readableHtml duplicates the text and can be large.
+        const { readableHtml: _html, ...metadata } = meta ?? {};
 
         return {
           content: [{ type: "text" as const, text: textContent }],
           details: {
-            metadata: data,
+            metadata: meta ? metadata : data,
             url: targetUrl,
             renderedBy: retrievalMethod?.startsWith("browser") ? retrievalMethod : undefined,
           },

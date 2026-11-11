@@ -2,8 +2,8 @@
  * context7 — fetch up-to-date library documentation.
  *
  * Uses https://context7.com/api — no API key required.
- * Step 1: resolve library name to ID via /search
- * Step 2: fetch docs via /{id}?type=txt&tokens=...&topic=...
+ * Step 1: resolve library name to ID via /v2/libs/search
+ * Step 2: fetch docs via /v2/docs/code/{id}?type=txt&tokens=...&topic=...
  */
 
 import { TtlLruCache } from "@xaccefy/pi-shared";
@@ -65,7 +65,8 @@ export const context7Tool = {
         AbortSignal.timeout(STEP_TIMEOUT_MS),
       ]);
 
-      const searchUrl = `${CONTEXT7_API}/search?query=${encodeURIComponent(libraryName)}`;
+      const searchParams = new URLSearchParams({ libraryName, query: topic || libraryName });
+      const searchUrl = `${CONTEXT7_API}/v2/libs/search?${searchParams.toString()}`;
       const searchRes = await fetch(searchUrl, { signal: searchSignal });
       if (!searchRes.ok) throw new Error(`Context7 search failed: ${searchRes.status}`);
 
@@ -92,7 +93,7 @@ export const context7Tool = {
       docParams.set("tokens", String(maxTokens));
       if (topic) docParams.set("topic", topic);
 
-      const docsUrl = `${CONTEXT7_API}/${libraryId}?${docParams.toString()}`;
+      const docsUrl = `${CONTEXT7_API}/v2/docs/code/${libraryId}?${docParams.toString()}`;
       const docsRes = await fetch(docsUrl, { signal: docsSignal });
       if (!docsRes.ok) throw new Error(`Context7 docs failed: ${docsRes.status}`);
 
